@@ -13,6 +13,8 @@ It creates an isolated `kind-native-histograms` cluster. It does not use the cur
 
 ## Run
 
+Prerequisites: Docker Desktop, `kubectl`, `jq`, Google Chrome for screenshots, and `kind` v0.33.0 or later. Kubernetes v1.37 requires a current `kind` release because older releases generate an obsolete kubeadm configuration.
+
 ```bash
 ./scripts/deploy.sh
 sleep 30
