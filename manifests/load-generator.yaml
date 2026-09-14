@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-load-generator
+  namespace: native-histograms-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: native-histograms-api-load
+rules:
+  - nonResourceURLs:
+      - /version
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: native-histograms-api-load
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: native-histograms-api-load
+subjects:
+  - kind: ServiceAccount
+    name: api-load-generator
+    namespace: native-histograms-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-load-generator
+  namespace: native-histograms-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-load-generator
+  template:
+    metadata:
+      labels:
+        app: api-load-generator
+    spec:
+      serviceAccountName: api-load-generator
+      containers:
+        - name: curl
+          image: curlimages/curl:8.14.1
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              while true; do
+                curl --fail --silent --show-error \
+                  --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                  --header "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                  https://kubernetes.default.svc/version >/dev/null
+                sleep 0.2
+              done

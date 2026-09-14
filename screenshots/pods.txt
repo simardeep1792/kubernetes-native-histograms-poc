@@ -1,0 +1,4 @@
+NAME                                  READY   STATUS    RESTARTS   AGE   IP           NODE                              NOMINATED NODE   READINESS GATES
+api-load-generator-5c6cf8c656-hmj6n   1/1     Running   0          96s   10.244.0.5   native-histograms-control-plane   <none>           <none>
+grafana-5f5b6f4766-vv9tg              1/1     Running   0          96s   10.244.0.4   native-histograms-control-plane   <none>           <none>
+prometheus-7fb6c77f87-jvmf9           1/1     Running   0          96s   10.244.0.7   native-histograms-control-plane   <none>           <none>

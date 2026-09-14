@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: native-histograms-demo
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: native-histograms-demo
+data:
+  dashboard-provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: Native Histograms
+        folder: Kubernetes POC
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard
+  namespace: native-histograms-demo
+data:
+  native-histograms.json: |
+    {
+      "uid": "native-histograms-poc",
+      "title": "Kubernetes Native Histograms POC",
+      "schemaVersion": 41,
+      "version": 1,
+      "refresh": "5s",
+      "time": {"from": "now-5m", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "P99 API server latency: native versus classic",
+          "type": "timeseries",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "s", "decimals": 3}, "overrides": []},
+          "targets": [
+            {"refId": "A", "legendFormat": "Native P99", "expr": "histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds[1m])))"},
+            {"refId": "B", "legendFormat": "Classic P99", "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket[1m])))"}
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Native histogram series ingested",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+          "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+          "targets": [{"refId": "A", "expr": "count(apiserver_request_duration_seconds)"}]
+        },
+        {
+          "id": 3,
+          "title": "Classic bucket series retained during migration",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+          "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+          "targets": [{"refId": "A", "expr": "count(apiserver_request_duration_seconds_bucket)"}]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: native-histograms-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:12.0.0
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: Admin
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: datasource
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: datasource
+          configMap:
+            name: grafana-datasource
+        - name: provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboard
+          configMap:
+            name: grafana-dashboard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: native-histograms-demo
+spec:
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
