@@ -37,38 +37,118 @@ data:
   native-histograms.json: |
     {
       "uid": "native-histograms-poc",
-      "title": "Kubernetes Native Histograms POC",
+      "title": "Kubernetes Native Histograms: Migration Lab",
       "schemaVersion": 41,
-      "version": 1,
+      "version": 2,
       "refresh": "5s",
       "time": {"from": "now-5m", "to": "now"},
       "panels": [
         {
           "id": 1,
-          "title": "P99 API server latency: native versus classic",
-          "type": "timeseries",
-          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
-          "fieldConfig": {"defaults": {"unit": "s", "decimals": 3}, "overrides": []},
-          "targets": [
-            {"refId": "A", "legendFormat": "Native P99", "expr": "histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds[1m])))"},
-            {"refId": "B", "legendFormat": "Classic P99", "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket[1m])))"}
-          ]
+          "type": "text",
+          "title": "Native Histograms Are Live",
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+          "options": {
+            "mode": "markdown",
+            "content": "## Kubernetes API server observability, without the bucket explosion\n\n**Green = native histograms** collected via Prometheus Protobuf. **Blue = classic buckets** retained safely while dashboards migrate. The scorecard below shows the live cardinality difference."
+          }
         },
         {
           "id": 2,
-          "title": "Native histogram series ingested",
+          "title": "Native histogram series",
           "type": "stat",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
-          "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"color": {"mode": "fixed"}, "custom": {"align": "center"}, "color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 0}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
           "targets": [{"refId": "A", "expr": "count(apiserver_request_duration_seconds)"}]
         },
         {
           "id": 3,
-          "title": "Classic bucket series retained during migration",
+          "title": "Classic bucket series retained",
           "type": "stat",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
-          "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 4},
+          "fieldConfig": {"defaults": {"color": {"fixedColor": "blue", "mode": "fixed"}, "custom": {"align": "center"}, "decimals": 0}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
           "targets": [{"refId": "A", "expr": "count(apiserver_request_duration_seconds_bucket)"}]
+        },
+        {
+          "id": 4,
+          "title": "Series reduction after cutover",
+          "description": "Estimated reduction when classic bucket ingestion is disabled after migration.",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 4},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "center"}, "decimals": 1, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 50}, {"color": "green", "value": 80}]}, "unit": "percent"}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "targets": [{"refId": "A", "expr": "100 * (1 - count(apiserver_request_duration_seconds) / count(apiserver_request_duration_seconds_bucket))"}]
+        },
+        {
+          "id": 5,
+          "title": "Live API request rate",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 4},
+          "fieldConfig": {"defaults": {"color": {"fixedColor": "purple", "mode": "fixed"}, "custom": {"align": "center"}, "decimals": 1, "unit": "reqps"}, "overrides": []},
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "targets": [{"refId": "A", "expr": "sum(histogram_count(rate(apiserver_request_duration_seconds[1m])))"}]
+        },
+        {
+          "id": 6,
+          "title": "P99 API server latency: native vs classic",
+          "type": "timeseries",
+          "description": "Both calculations should closely track while classic histograms remain enabled.",
+          "gridPos": {"h": 10, "w": 16, "x": 0, "y": 10},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 12, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 4, "showPoints": "auto", "spanNulls": true}, "unit": "s", "decimals": 3}, "overrides": [{"matcher": {"id": "byName", "options": "Native P99"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Classic P99"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}]},
+          "targets": [
+            {"refId": "A", "legendFormat": "Native P99", "expr": "histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds[1m])))"},
+            {"refId": "B", "legendFormat": "Classic P99", "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket[1m])))"}
+          ],
+          "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}}
+        },
+        {
+          "id": 7,
+          "title": "Native latency spectrum",
+          "type": "timeseries",
+          "description": "High-resolution native quantiles without any le bucket label.",
+          "gridPos": {"h": 10, "w": 8, "x": 16, "y": 10},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 16, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 3, "showPoints": "auto", "spanNulls": true}, "unit": "s", "decimals": 3}, "overrides": []},
+          "targets": [
+            {"refId": "A", "legendFormat": "P50", "expr": "histogram_quantile(0.50, sum(rate(apiserver_request_duration_seconds[1m])))"},
+            {"refId": "B", "legendFormat": "P90", "expr": "histogram_quantile(0.90, sum(rate(apiserver_request_duration_seconds[1m])))"},
+            {"refId": "C", "legendFormat": "P99", "expr": "histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds[1m])))"}
+          ],
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}}
+        },
+        {
+          "id": 8,
+          "title": "Request-rate parity: native vs classic",
+          "type": "timeseries",
+          "description": "The two lines represent the same API-server traffic through each histogram format.",
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 20},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 3, "showPoints": "auto", "spanNulls": true}, "unit": "reqps", "decimals": 1}, "overrides": [{"matcher": {"id": "byName", "options": "Native"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Classic"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}]},
+          "targets": [
+            {"refId": "A", "legendFormat": "Native", "expr": "sum(histogram_count(rate(apiserver_request_duration_seconds[1m])))"},
+            {"refId": "B", "legendFormat": "Classic", "expr": "sum(rate(apiserver_request_duration_seconds_count[1m]))"}
+          ],
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}}
+        },
+        {
+          "id": 9,
+          "title": "Classic bucket distribution retained during migration",
+          "type": "heatmap",
+          "description": "The classic format multiplies each label set by its bucket boundaries. This panel disappears after cutover.",
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 20},
+          "fieldConfig": {"defaults": {"custom": {"scaleDistribution": {"type": "linear"}}}, "overrides": []},
+          "targets": [{"refId": "A", "format": "heatmap", "legendFormat": "{{le}}", "expr": "sum by (le) (rate(apiserver_request_duration_seconds_bucket[1m]))"}],
+          "options": {"calculate": false, "cellGap": 1, "color": {"exponent": 0.5, "fill": "dark-orange", "mode": "scheme", "reverse": false, "scale": "linear", "scheme": "Oranges", "steps": 64}, "legend": {"show": true}, "rowsFrame": {"layout": "auto"}, "showValue": "never", "tooltip": {"mode": "single", "show": true, "yHistogram": false}, "yAxis": {"axisPlacement": "left", "reverse": false, "unit": "s"}}
+        },
+        {
+          "id": 10,
+          "type": "text",
+          "title": "Migration Checkpoint",
+          "gridPos": {"h": 5, "w": 24, "x": 0, "y": 29},
+          "options": {
+            "mode": "markdown",
+            "content": "### Safe migration path\n\n1. Keep `scrape_native_histograms: true` and `always_scrape_classic_histograms: true`.  2. Compare the green native P99 against blue classic P99.  3. Migrate alerts and dashboards to native histogram functions.  4. Disable classic ingestion to reclaim the series reduction shown above."
+          }
         }
       ]
     }

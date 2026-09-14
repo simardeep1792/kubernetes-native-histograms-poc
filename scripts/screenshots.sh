@@ -25,7 +25,7 @@ if [[ ! -x "$chrome" ]]; then
   exit 1
 fi
 
-"$chrome" --headless --disable-gpu --no-first-run --no-default-browser-check --window-size=1440,1000 \
+"$chrome" --headless --disable-gpu --no-first-run --no-default-browser-check --window-size=1440,1700 \
   --screenshot="$root_dir/screenshots/grafana-dashboard.png" \
   "http://127.0.0.1:13000/d/native-histograms-poc" >/dev/null 2>&1
 "$chrome" --headless --disable-gpu --no-first-run --no-default-browser-check --window-size=1440,1000 \
